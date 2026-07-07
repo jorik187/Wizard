@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Wizard Punkteblock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#150d28;
+    --panel:#231645;
+    --panel-2:#2e1d57;
+    --line:#41307a;
+    --gold:#e9b949;
+    --gold-dim:#b48f37;
+    --ink:#f2ecdd;
+    --muted:#a99cc7;
+    --green:#6fce8f;
+    --red:#e5687a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:'Source Sans 3',system-ui,sans-serif;
+    background:
+      radial-gradient(1200px 500px at 50% -100px, #33205f 0%, transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    min-height:100dvh;
+    padding-bottom:40px;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:16px}
+
+  /* ---------- Header ---------- */
+  header{
+    text-align:center;
+    padding:22px 0 10px;
+    position:relative;
+  }
+  header .stars{
+    position:absolute;inset:0;pointer-events:none;overflow:hidden;
+  }
+  header .stars::before, header .stars::after{
+    content:"";position:absolute;width:2px;height:2px;border-radius:50%;
+    background:#fff;
+    box-shadow: 30px 12px 0 0 rgba(255,255,255,.7), 90px 40px 0 0 rgba(255,255,255,.4),
+      160px 8px 0 0 rgba(255,255,255,.6), 240px 50px 0 0 rgba(255,255,255,.35),
+      320px 20px 0 0 rgba(255,255,255,.7), 400px 44px 0 0 rgba(255,255,255,.5),
+      470px 10px 0 0 rgba(255,255,255,.6), 540px 36px 0 0 rgba(255,255,255,.4),
+      600px 18px 0 0 rgba(255,255,255,.55);
+    animation:twinkle 3.5s ease-in-out infinite alternate;
+  }
+  header .stars::after{transform:translate(14px,26px) scale(.8);animation-delay:1.6s;opacity:.7}
+  @keyframes twinkle{from{opacity:.35}to{opacity:.95}}
+  @media (prefers-reduced-motion: reduce){ header .stars::before, header .stars::after{animation:none} }
+  h1{
+    font-family:'Cinzel',serif;font-weight:900;letter-spacing:.14em;
+    font-size:clamp(28px,7vw,40px);color:var(--gold);
+    text-shadow:0 2px 18px rgba(233,185,73,.35);
+  }
+  header .sub{color:var(--muted);font-size:14px;letter-spacing:.2em;text-transform:uppercase;margin-top:2px}
+
+  /* ---------- Panels & Basics ---------- */
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;margin-top:16px;
+  }
+  h2{font-family:'Cinzel',serif;font-weight:700;font-size:18px;color:var(--gold);margin-bottom:12px;letter-spacing:.06em}
+  .hint{color:var(--muted);font-size:13px;line-height:1.4}
+  button{
+    font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;
+    border:none;border-radius:12px;padding:14px 18px;color:#1c1233;
+    background:linear-gradient(180deg,#f3cd6a,var(--gold));
+    box-shadow:0 3px 0 var(--gold-dim);
+    width:100%;
+  }
+  button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--gold-dim)}
+  button.ghost{
+    background:transparent;color:var(--muted);box-shadow:none;
+    border:1px solid var(--line);font-weight:600;
+  }
+  button.danger{background:transparent;color:var(--red);border:1px solid var(--red);box-shadow:none}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button:focus-visible, input:focus-visible, .cell:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .row{display:flex;gap:10px}
+  .row > *{flex:1}
+  .mt{margin-top:12px}
+  input[type=text]{
+    width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--ink);font-size:16px;font-family:inherit;
+  }
+  input[type=text]::placeholder{color:#6e5f9a}
+
+  /* ---------- Setup ---------- */
+  .count-picker{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .count-picker button{
+    padding:16px 0;font-size:20px;background:var(--panel-2);color:var(--ink);
+    border:1px solid var(--line);box-shadow:none;
+  }
+  .count-picker button.sel{
+    background:linear-gradient(180deg,#f3cd6a,var(--gold));color:#1c1233;border-color:var(--gold);
+  }
+  .count-picker .rounds-label{display:block;font-size:11px;font-weight:600;opacity:.75;margin-top:2px}
+  .toggle{
+    display:flex;align-items:center;gap:12px;margin-top:14px;cursor:pointer;user-select:none;
+  }
+  .toggle input{width:22px;height:22px;accent-color:var(--gold)}
+  .toggle span{font-size:14px;line-height:1.35}
+
+  /* ---------- Game header ---------- */
+  .round-banner{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+  }
+  .round-banner .big{font-family:'Cinzel',serif;font-size:22px;color:var(--gold);font-weight:700}
+  .badge{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:999px;
+    padding:6px 12px;font-size:13px;color:var(--muted);white-space:nowrap;
+  }
+  .badge b{color:var(--ink)}
+  .phase-label{
+    margin-top:10px;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+  }
+
+  /* ---------- Stepper list ---------- */
+  .stepper-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:10px 0;border-bottom:1px solid var(--line);
+  }
+  .stepper-row:last-of-type{border-bottom:none}
+  .stepper-row .pname{font-weight:700;font-size:17px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .stepper-row .pname .dealer-star{color:var(--gold);font-size:13px;margin-left:6px}
+  .stepper-row .pbid{font-size:13px;color:var(--muted);margin-right:4px;white-space:nowrap}
+  .stepper{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel-2)}
+  .stepper button{
+    width:48px;height:48px;padding:0;border-radius:0;box-shadow:none;
+    background:transparent;color:var(--gold);font-size:26px;font-weight:700;
+  }
+  .stepper .val{width:44px;text-align:center;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+  .sum-line{margin-top:12px;font-size:14px;text-align:center;color:var(--muted)}
+  .sum-line.bad{color:var(--red);font-weight:700}
+  .sum-line.good{color:var(--green)}
+
+  /* ---------- Leaderboard ---------- */
+  .lb-row{
+    display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);
+  }
+  .lb-row:last-child{border-bottom:none}
+  .lb-rank{font-family:'Cinzel',serif;color:var(--gold);width:26px;font-weight:700}
+  .lb-name{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lb-pts{font-variant-numeric:tabular-nums;font-weight:700;font-size:18px}
+
+  /* ---------- Spielblock table ---------- */
+  .block-scroll{overflow-x:auto;margin-top:6px;-webkit-overflow-scrolling:touch}
+  table.block{border-collapse:collapse;width:100%;min-width:calc(64px + var(--pcols,4)*76px)}
+  table.block th, table.block td{border:1px solid var(--line);text-align:center;padding:0}
+  table.block thead th{
+    background:var(--panel-2);font-family:'Cinzel',serif;font-size:13px;color:var(--gold);
+    padding:8px 4px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  table.block td.rnd{
+    background:var(--panel-2);color:var(--muted);font-size:12px;font-weight:700;
+    width:44px;padding:6px 4px;font-variant-numeric:tabular-nums;
+  }
+  .cell{
+    position:relative;display:block;width:100%;height:52px;background:transparent;border:none;
+    color:var(--ink);cursor:pointer;padding:0;font-family:inherit;border-radius:0;box-shadow:none;font-weight:400;
+  }
+  .cell:active{transform:none;box-shadow:none;background:rgba(233,185,73,.08)}
+  .cell .bid{
+    position:absolute;top:3px;left:5px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;
+  }
+  .cell .bid.hit{color:var(--green)}
+  .cell .bid.miss{color:var(--red)}
+  .cell .total{
+    position:absolute;right:7px;bottom:5px;font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;
+  }
+  .cell .diag{
+    position:absolute;inset:0;
+    background:linear-gradient(to top right, transparent calc(50% - .5px), var(--line) calc(50% - .5px), var(--line) calc(50% + .5px), transparent calc(50% + .5px));
+    opacity:.5;pointer-events:none;
+  }
+  .legend{font-size:12px;color:var(--muted);margin-top:8px}
+
+  /* ---------- Modal ---------- */
+  .modal-back{
+    position:fixed;inset:0;background:rgba(8,4,20,.75);display:none;
+    align-items:flex-end;justify-content:center;z-index:50;
+  }
+  .modal-back.open{display:flex}
+  .modal{
+    background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;
+    width:100%;max-width:640px;padding:20px 18px 26px;
+  }
+  .modal h3{font-family:'Cinzel',serif;color:var(--gold);font-size:17px;margin-bottom:4px}
+  .modal .hint{margin-bottom:10px}
+
+  /* ---------- Final screen ---------- */
+  .winner-box{text-align:center;padding:10px 0 4px}
+  .winner-box .crown{font-size:44px}
+  .winner-box .wname{font-family:'Cinzel',serif;font-size:26px;color:var(--gold);font-weight:900;margin-top:4px}
+  .winner-box .wpts{color:var(--muted);margin-top:2px}
+  canvas#chart{width:100%;height:200px;margin-top:10px}
+
+  /* ---------- History ---------- */
+  .hist-item{
+    padding:12px 0;border-bottom:1px solid var(--line);font-size:14px;
+  }
+  .hist-item:last-child{border-bottom:none}
+  .hist-item .date{color:var(--muted);font-size:12px}
+  .hist-item .res{margin-top:3px;line-height:1.5}
+  .hist-item .res b{color:var(--gold)}
+
+  .screen{display:none}
+  .screen.active{display:block}
+  .storage-warn{
+    margin-top:14px;font-size:12px;color:var(--muted);text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="stars"></div>
+    <h1>WIZARD</h1>
+    <div class="sub">Punkteblock</div>
+  </header>
+
+  <!-- ============ SETUP ============ -->
+  <div id="scr-setup" class="screen">
+    <div id="resume-panel" class="panel" style="display:none">
+      <h2>Spiel fortsetzen?</h2>
+      <p class="hint" id="resume-info"></p>
+      <div class="row mt">
+        <button id="btn-resume">Weiterspielen</button>
+        <button class="ghost" id="btn-discard">Verwerfen</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Neues Spiel</h2>
+      <p class="hint">Wie viele Zauberlehrlinge spielen mit?</p>
+      <div class="count-picker mt" id="count-picker">
+        <button data-n="3">3<span class="rounds-label">20 Runden</span></button>
+        <button data-n="4" class="sel">4<span class="rounds-label">15 Runden</span></button>
+        <button data-n="5">5<span class="rounds-label">12 Runden</span></button>
+        <button data-n="6">6<span class="rounds-label">10 Runden</span></button>
+      </div>
+      <div id="name-inputs" class="mt"></div>
+      <button class="mt" id="btn-start">Spiel starten</button>
+    </div>
+
+    <div class="panel" id="history-panel" style="display:none">
+      <h2>Frühere Spiele</h2>
+      <div id="history-list"></div>
+      <button class="ghost mt" id="btn-clear-history">Verlauf löschen</button>
+    </div>
+
+    <p class="storage-warn">Spielstände werden lokal in deinem Browser gespeichert.</p>
+  </div>
+
+  <!-- ============ GAME ============ -->
+  <div id="scr-game" class="screen">
+    <div class="panel">
+      <div class="round-banner">
+        <div class="big" id="round-title">Runde 1</div>
+        <div class="badge" id="round-badge"></div>
+      </div>
+      <div class="phase-label" id="phase-label">Ansagen</div>
+      <div id="stepper-list" class="mt"></div>
+      <div class="sum-line" id="sum-line"></div>
+      <button class="mt" id="btn-phase-next">Ansagen bestätigen</button>
+    </div>
+
+    <div class="panel">
+      <h2>Rangliste</h2>
+      <div id="leaderboard"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Spielblock</h2>
+      <div class="block-scroll"><table class="block" id="block-table"></table></div>
+      <div class="legend">Klein = Ansage / Ergebnis · Groß = Punktestand · Runde antippen zum Bearbeiten</div>
+    </div>
+
+    <button class="danger mt" id="btn-abort">Spiel abbrechen</button>
+  </div>
+
+  <!-- ============ FINAL ============ -->
+  <div id="scr-final" class="screen">
+    <div class="panel">
+      <div class="winner-box">
+        <div class="crown">🧙‍♂️</div>
+        <div class="wname" id="final-winner"></div>
+        <div class="wpts" id="final-winner-pts"></div>
+      </div>
+      <div id="final-lb" class="mt"></div>
+    </div>
+    <div class="panel">
+      <h2>Punkteverlauf</h2>
+      <canvas id="chart" width="600" height="200"></canvas>
+    </div>
+    <div class="panel">
+      <h2>Spielblock</h2>
+      <div class="block-scroll"><table class="block" id="final-block"></table></div>
+    </div>
+    <button class="mt" id="btn-new-after">Neues Spiel</button>
+  </div>
+
+</div>
+
+<!-- ============ EDIT MODAL ============ -->
+<div class="modal-back" id="modal-back">
+  <div class="modal">
+    <h3 id="modal-title">Runde bearbeiten</h3>
+    <p class="hint" id="modal-hint"></p>
+    <div id="modal-steppers"></div>
+    <div class="sum-line" id="modal-sum"></div>
+    <div class="row mt">
+      <button id="modal-save">Speichern</button>
+      <button class="ghost" id="modal-cancel">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------- Storage (localStorage mit Fallback) ---------------- */
+var mem = {};
+var store = {
+  get:function(k){ try{ var v = localStorage.getItem(k); return v ? JSON.parse(v) : null; }catch(e){ return mem[k]||null; } },
+  set:function(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ mem[k]=v; } },
+  del:function(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
+};
+var KEY_GAME = "wizard_current_game";
+var KEY_HIST = "wizard_history";
+
+/* ---------------- State ---------------- */
+var game = null;
+/* game = {
+     players:["A","B",...],
+     totalRounds:15,
+     rounds:[ {bids:[..], tricks:[..]|null} ... ],  // nur gespielte/angefangene Runden
+     phase:"bid"|"tricks",
+     temp:[..],           // aktuelle Stepper-Werte
+     startedAt: 169...,
+   } */
+
+function roundsFor(n){ return Math.floor(60/n); }
+function cardsInRound(r){ return r+1; } /* r ist 0-basiert */
+function dealerFor(r, n){ return r % n; }
+
+function currentRoundIndex(){ return game.rounds.length; } /* nächste zu spielende (0-basiert), während Eingabe */
+
+/* Punkte einer Runde für Spieler i */
+function roundPoints(bid, tricks){
+  if(bid === tricks) return 20 + 10*tricks;
+  return -10 * Math.abs(bid - tricks);
+}
+/* Kumulierte Punktestände: Array pro Runde pro Spieler */
+function computeTotals(){
+  var totals = [];
+  var run = game.players.map(function(){return 0;});
+  game.rounds.forEach(function(rd){
+    if(!rd.tricks) return;
+    run = run.map(function(t,i){ return t + roundPoints(rd.bids[i], rd.tricks[i]); });
+    totals.push(run.slice());
+  });
+  return totals;
+}
+function currentTotals(){
+  var t = computeTotals();
+  return t.length ? t[t.length-1] : game.players.map(function(){return 0;});
+}
+
+/* ---------------- Helpers ---------------- */
+function $(id){ return document.getElementById(id); }
+function el(tag, cls, html){
+  var e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(html !== undefined) e.innerHTML = html;
+  return e;
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+function show(id){
+  ["scr-setup","scr-game","scr-final"].forEach(function(s){
+    $(s).classList.toggle("active", s===id);
+  });
+  window.scrollTo(0,0);
+}
+
+/* ---------------- Setup screen ---------------- */
+var selCount = 4;
+
+function renderNameInputs(){
+  var box = $("name-inputs");
+  var old = [];
+  box.querySelectorAll("input").forEach(function(inp){ old.push(inp.value); });
+  box.innerHTML = "";
+  for(var i=0;i<selCount;i++){
+    var inp = document.createElement("input");
+    inp.type = "text";
+    inp.placeholder = "Spieler " + (i+1);
+    inp.maxLength = 14;
+    inp.value = old[i] || "";
+    inp.style.marginTop = "8px";
+    box.appendChild(inp);
+  }
+}
+
+$("count-picker").addEventListener("click", function(e){
+  var b = e.target.closest("button");
+  if(!b) return;
+  selCount = parseInt(b.dataset.n,10);
+  this.querySelectorAll("button").forEach(function(x){ x.classList.toggle("sel", x===b); });
+  renderNameInputs();
+});
+
+$("btn-start").addEventListener("click", function(){
+  var names = [];
+  $("name-inputs").querySelectorAll("input").forEach(function(inp,i){
+    names.push(inp.value.trim() || ("Spieler " + (i+1)));
+  });
+  game = {
+    players: names,
+    totalRounds: roundsFor(names.length),
+    rounds: [],
+    phase: "bid",
+    temp: names.map(function(){return 0;}),
+    startedAt: Date.now()
+  };
+  saveGame();
+  show("scr-game");
+  renderGame();
+});
+
+function renderResume(){
+  var g = store.get(KEY_GAME);
+  if(g && g.players){
+    game = g;
+    $("resume-panel").style.display = "block";
+    var played = g.rounds.filter(function(r){return r.tricks;}).length;
+    $("resume-info").textContent = g.players.join(", ") + " · Runde " + Math.min(played+1, g.totalRounds) + " von " + g.totalRounds;
+  } else {
+    $("resume-panel").style.display = "none";
+  }
+}
+$("btn-resume").addEventListener("click", function(){
+  show("scr-game");
+  renderGame();
+});
+$("btn-discard").addEventListener("click", function(){
+  if(!confirm("Angefangenes Spiel wirklich verwerfen?")) return;
+  game = null;
+  store.del(KEY_GAME);
+  renderResume();
+});
+
+/* ---------------- History ---------------- */
+function renderHistory(){
+  var hist = store.get(KEY_HIST) || [];
+  $("history-panel").style.display = hist.length ? "block" : "none";
+  var list = $("history-list");
+  list.innerHTML = "";
+  hist.slice().reverse().forEach(function(h){
+    var d = new Date(h.finishedAt);
+    var date = d.toLocaleDateString("de-DE") + " · " + h.players.length + " Spieler";
+    var res = h.result.map(function(r,i){
+      var s = esc(r.name) + " " + r.pts;
+      return i===0 ? "<b>🏆 " + s + "</b>" : s;
+    }).join(" · ");
+    var item = el("div","hist-item",'<div class="date">'+date+'</div><div class="res">'+res+'</div>');
+    list.appendChild(item);
+  });
+}
+$("btn-clear-history").addEventListener("click", function(){
+  if(!confirm("Gesamten Spielverlauf löschen?")) return;
+  store.del(KEY_HIST);
+  renderHistory();
+});
+
+/* ---------------- Game rendering ---------------- */
+function saveGame(){ if(game) store.set(KEY_GAME, game); }
+
+function renderGame(){
+  var r = currentRoundIndex();
+  if(game.phase === "tricks") r = game.rounds.length - 1; /* letzte Runde hat bids, tricks fehlen */
+
+  /* Falls Spiel fertig */
+  var playedFull = game.rounds.filter(function(x){return x.tricks;}).length;
+  if(playedFull >= game.totalRounds){ finishGame(); return; }
+
+  /* Falls phase bid, aber letzte Runde noch keine tricks hat -> eigentlich tricks-Phase */
+  if(game.phase === "bid" && game.rounds.length > playedFull){
+    game.phase = "tricks";
+  }
+  r = (game.phase === "bid") ? game.rounds.length : game.rounds.length - 1;
+
+  var cards = cardsInRound(r);
+  var dealer = dealerFor(r, game.players.length);
+
+  $("round-title").textContent = "Runde " + (r+1) + " / " + game.totalRounds;
+  $("round-badge").innerHTML = "<b>" + cards + "</b> Karte" + (cards>1?"n":"") + " · Geber: <b>" + esc(game.players[dealer]) + "</b>";
+  $("phase-label").textContent = game.phase === "bid" ? "✦ Ansagen (Stiche schätzen)" : "✦ Ergebnis (Stiche eintragen)";
+  $("btn-phase-next").textContent = game.phase === "bid" ? "Ansagen bestätigen" : "Runde abschließen";
+
+  renderSteppers($("stepper-list"), game.temp, cards, dealer, game.phase, function(){ updateSumLine(); saveGame(); });
+  updateSumLine();
+  renderLeaderboard($("leaderboard"));
+  renderBlock($("block-table"), true);
+}
+
+function renderSteppers(container, values, maxVal, dealer, phase, onChange){
+  container.innerHTML = "";
+  game.players.forEach(function(name, i){
+    var row = el("div","stepper-row");
+    var label = el("div","pname", esc(name) + (i===dealer ? ' <span class="dealer-star">✦ Geber</span>' : ""));
+    row.appendChild(label);
+    if(phase === "tricks"){
+      var bidInfo = el("div","pbid","Ansage: " + game.rounds[game.rounds.length-1].bids[i]);
+      row.appendChild(bidInfo);
+    }
+    var st = el("div","stepper");
+    var minus = el("button",null,"−");
+    var val = el("div","val", values[i]);
+    var plus = el("button",null,"+");
+    minus.setAttribute("aria-label","weniger");
+    plus.setAttribute("aria-label","mehr");
+    minus.addEventListener("click", function(){
+      if(values[i] > 0){ values[i]--; val.textContent = values[i]; onChange(); }
+    });
+    plus.addEventListener("click", function(){
+      if(values[i] < maxVal){ values[i]++; val.textContent = values[i]; onChange(); }
+    });
+    st.appendChild(minus); st.appendChild(val); st.appendChild(plus);
+    row.appendChild(st);
+    container.appendChild(row);
+  });
+}
+
+function updateSumLine(){
+  var r = (game.phase === "bid") ? game.rounds.length : game.rounds.length - 1;
+  var cards = cardsInRound(r);
+  var sum = game.temp.reduce(function(a,b){return a+b;},0);
+  var line = $("sum-line");
+  line.className = "sum-line";
+  if(game.phase === "bid"){
+    line.textContent = "Summe der Ansagen: " + sum + " (Stiche in dieser Runde: " + cards + ")";
+  } else {
+    line.textContent = "Stiche eingetragen: " + sum + " von " + cards;
+  }
+}
+
+$("btn-phase-next").addEventListener("click", function(){
+  if(game.phase === "bid"){
+    game.rounds.push({ bids: game.temp.slice(), tricks: null });
+    game.phase = "tricks";
+    game.temp = game.players.map(function(){return 0;});
+  } else {
+    var r = game.rounds.length - 1;
+    game.rounds[r].tricks = game.temp.slice();
+    game.phase = "bid";
+    game.temp = game.players.map(function(){return 0;});
+  }
+  saveGame();
+  renderGame();
+});
+
+$("btn-abort").addEventListener("click", function(){
+  if(!confirm("Spiel wirklich abbrechen? Der Spielstand geht verloren.")) return;
+  game = null;
+  store.del(KEY_GAME);
+  renderResume();
+  renderHistory();
+  show("scr-setup");
+});
+
+/* ---------------- Leaderboard ---------------- */
+function rankedPlayers(totals){
+  return game.players.map(function(name,i){ return {name:name, pts:totals[i], i:i}; })
+    .sort(function(a,b){ return b.pts - a.pts; });
+}
+function renderLeaderboard(container){
+  var totals = currentTotals();
+  var ranked = rankedPlayers(totals);
+  container.innerHTML = "";
+  var lastPts = null, lastRank = 0;
+  ranked.forEach(function(p, idx){
+    var rank = (p.pts === lastPts) ? lastRank : idx+1;
+    lastPts = p.pts; lastRank = rank;
+    var row = el("div","lb-row",
+      '<div class="lb-rank">'+rank+'.</div>'+
+      '<div class="lb-name">'+(rank===1 && p.pts !== 0 ? "🏆 " : "")+esc(p.name)+'</div>'+
+      '<div class="lb-pts">'+p.pts+'</div>');
+    container.appendChild(row);
+  });
+}
+
+/* ---------------- Spielblock table ---------------- */
+function renderBlock(table, editable){
+  var totals = computeTotals();
+  table.style.setProperty("--pcols", game.players.length);
+  var html = "<thead><tr><th></th>";
+  game.players.forEach(function(n){ html += "<th>"+esc(n)+"</th>"; });
+  html += "</tr></thead><tbody>";
+  game.rounds.forEach(function(rd, r){
+    if(!rd.tricks) return;
+    html += '<tr><td class="rnd">'+(r+1)+'</td>';
+    game.players.forEach(function(_, i){
+      var hit = rd.bids[i] === rd.tricks[i];
+      html += '<td><button class="cell" '+(editable?'data-round="'+r+'"':'disabled')+'>'+
+        '<span class="diag"></span>'+
+        '<span class="bid '+(hit?"hit":"miss")+'">'+rd.bids[i]+"/"+rd.tricks[i]+'</span>'+
+        '<span class="total">'+totals[r][i]+'</span>'+
+        '</button></td>';
+    });
+    html += "</tr>";
+  });
+  html += "</tbody>";
+  table.innerHTML = html;
+  if(!game.rounds.some(function(r){return r.tricks;})){
+    table.innerHTML = "";
+    table.insertAdjacentHTML("afterend","");
+  }
+}
+
+/* Klick auf Zelle -> Runde bearbeiten */
+$("block-table").addEventListener("click", function(e){
+  var c = e.target.closest(".cell");
+  if(!c || c.disabled) return;
+  openEditModal(parseInt(c.dataset.round,10));
+});
+
+/* ---------------- Edit modal ---------------- */
+var editRound = -1;
+var editBids = [], editTricks = [];
+
+function openEditModal(r){
+  editRound = r;
+  var rd = game.rounds[r];
+  editBids = rd.bids.slice();
+  editTricks = rd.tricks.slice();
+  var cards = cardsInRound(r);
+  $("modal-title").textContent = "Runde " + (r+1) + " bearbeiten";
+  $("modal-hint").textContent = cards + " Stich" + (cards>1?"e":"") + " zu verteilen · Ansage / Ergebnis pro Spieler";
+
+  var box = $("modal-steppers");
+  box.innerHTML = "";
+  game.players.forEach(function(name, i){
+    var row = el("div","stepper-row");
+    row.appendChild(el("div","pname", esc(name)));
+    row.appendChild(makeMiniStepper("Ansage", editBids, i, cards));
+    row.appendChild(makeMiniStepper("Stiche", editTricks, i, cards));
+    box.appendChild(row);
+  });
+  updateModalSum();
+  $("modal-back").classList.add("open");
+}
+function makeMiniStepper(label, arr, i, maxVal){
+  var wrap = el("div",null);
+  wrap.style.textAlign = "center";
+  var lab = el("div",null,label);
+  lab.style.cssText = "font-size:10px;color:var(--muted);margin-bottom:2px";
+  var st = el("div","stepper");
+  var minus = el("button",null,"−");
+  var val = el("div","val", arr[i]);
+  var plus = el("button",null,"+");
+  minus.style.width = plus.style.width = "38px";
+  minus.style.height = plus.style.height = "38px";
+  val.style.width = "34px"; val.style.fontSize = "17px";
+  minus.addEventListener("click", function(){ if(arr[i]>0){ arr[i]--; val.textContent=arr[i]; updateModalSum(); } });
+  plus.addEventListener("click", function(){ if(arr[i]<maxVal){ arr[i]++; val.textContent=arr[i]; updateModalSum(); } });
+  st.appendChild(minus); st.appendChild(val); st.appendChild(plus);
+  wrap.appendChild(lab); wrap.appendChild(st);
+  return wrap;
+}
+function updateModalSum(){
+  var cards = cardsInRound(editRound);
+  var sum = editTricks.reduce(function(a,b){return a+b;},0);
+  var line = $("modal-sum");
+  line.className = "sum-line";
+  line.textContent = "Stiche eingetragen: " + sum + " von " + cards;
+}
+$("modal-save").addEventListener("click", function(){
+  game.rounds[editRound].bids = editBids.slice();
+  game.rounds[editRound].tricks = editTricks.slice();
+  saveGame();
+  $("modal-back").classList.remove("open");
+  if($("scr-final").classList.contains("active")){ finishGame(); }
+  else { renderGame(); }
+});
+$("modal-cancel").addEventListener("click", function(){ $("modal-back").classList.remove("open"); });
+$("modal-back").addEventListener("click", function(e){ if(e.target === this) this.classList.remove("open"); });
+
+/* ---------------- Final screen ---------------- */
+function finishGame(){
+  var totals = currentTotals();
+  var ranked = rankedPlayers(totals);
+  var top = ranked[0];
+  var tied = ranked.filter(function(p){return p.pts === top.pts;});
+  $("final-winner").textContent = tied.map(function(p){return p.name;}).join(" & ");
+  $("final-winner-pts").textContent = top.pts + " Punkte" + (tied.length>1 ? " · Gleichstand!" : "");
+
+  var lb = $("final-lb");
+  lb.innerHTML = "";
+  var lastPts=null,lastRank=0;
+  ranked.forEach(function(p, idx){
+    var rank = (p.pts===lastPts)?lastRank:idx+1;
+    lastPts=p.pts; lastRank=rank;
+    lb.appendChild(el("div","lb-row",
+      '<div class="lb-rank">'+rank+'.</div><div class="lb-name">'+esc(p.name)+'</div><div class="lb-pts">'+p.pts+'</div>'));
+  });
+
+  renderBlockFinal();
+  drawChart();
+
+  /* In Verlauf speichern bzw. nach Bearbeitung aktualisieren */
+  var hist = store.get(KEY_HIST) || [];
+  var entry = {
+    finishedAt: game.finishedAt || Date.now(),
+    players: game.players.slice(),
+    result: ranked.map(function(p){ return {name:p.name, pts:p.pts}; })
+  };
+  if(!game.savedToHistory){
+    game.savedToHistory = true;
+    game.finishedAt = entry.finishedAt;
+    hist.push(entry);
+  } else {
+    hist[hist.length-1] = entry;
+  }
+  if(hist.length > 30) hist = hist.slice(-30);
+  store.set(KEY_HIST, hist);
+  store.del(KEY_GAME);
+  show("scr-final");
+}
+function renderBlockFinal(){
+  var table = $("final-block");
+  var totals = computeTotals();
+  table.style.setProperty("--pcols", game.players.length);
+  var html = "<thead><tr><th></th>";
+  game.players.forEach(function(n){ html += "<th>"+esc(n)+"</th>"; });
+  html += "</tr></thead><tbody>";
+  game.rounds.forEach(function(rd, r){
+    if(!rd.tricks) return;
+    html += '<tr><td class="rnd">'+(r+1)+'</td>';
+    game.players.forEach(function(_, i){
+      var hit = rd.bids[i] === rd.tricks[i];
+      html += '<td><button class="cell" data-round="'+r+'">'+
+        '<span class="diag"></span>'+
+        '<span class="bid '+(hit?"hit":"miss")+'">'+rd.bids[i]+"/"+rd.tricks[i]+'</span>'+
+        '<span class="total">'+totals[r][i]+'</span></button></td>';
+    });
+    html += "</tr>";
+  });
+  table.innerHTML = html + "</tbody>";
+}
+$("final-block").addEventListener("click", function(e){
+  var c = e.target.closest(".cell");
+  if(!c) return;
+  openEditModal(parseInt(c.dataset.round,10));
+});
+$("btn-new-after").addEventListener("click", function(){
+  game = null;
+  renderResume();
+  renderHistory();
+  show("scr-setup");
+});
+
+/* ---------------- Chart ---------------- */
+var chartColors = ["#e9b949","#6fce8f","#7aa7e8","#e5687a","#c98fe0","#e8985a"];
+function drawChart(){
+  var cv = $("chart");
+  var dpr = window.devicePixelRatio || 1;
+  var w = cv.clientWidth || 600, h = 200;
+  cv.width = w*dpr; cv.height = h*dpr;
+  var ctx = cv.getContext("2d");
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+
+  var totals = computeTotals();
+  if(!totals.length) return;
+  var all = [0];
+  totals.forEach(function(row){ row.forEach(function(v){ all.push(v); }); });
+  var min = Math.min.apply(null, all), max = Math.max.apply(null, all);
+  if(min === max){ max = min + 1; }
+  var padL = 34, padR = 8, padT = 10, padB = 18;
+  var n = totals.length;
+  function xr(r){ return padL + (w-padL-padR) * ((r+1)/n); }
+  function y(v){ return padT + (h-padT-padB) * (1 - (v-min)/(max-min)); }
+
+  /* Nulllinie */
+  ctx.strokeStyle = "rgba(169,156,199,.35)";
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(padL, y(0)); ctx.lineTo(w-padR, y(0)); ctx.stroke();
+  ctx.fillStyle = "rgba(169,156,199,.8)";
+  ctx.font = "11px sans-serif";
+  ctx.fillText("0", 8, y(0)+4);
+  ctx.fillText(String(max), 8, y(max)+8);
+  if(min < 0) ctx.fillText(String(min), 8, y(min));
+
+  game.players.forEach(function(_, i){
+    ctx.strokeStyle = chartColors[i % chartColors.length];
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(padL, y(0));
+    totals.forEach(function(row, r){ ctx.lineTo(xr(r), y(row[i])); });
+    ctx.stroke();
+  });
+
+  /* Legende */
+  var lx = padL, ly = h-4;
+  ctx.font = "11px sans-serif";
+  game.players.forEach(function(name, i){
+    ctx.fillStyle = chartColors[i % chartColors.length];
+    ctx.fillRect(lx, ly-8, 8, 8);
+    ctx.fillStyle = "#f2ecdd";
+    var label = name.length > 8 ? name.slice(0,8)+"…" : name;
+    ctx.fillText(label, lx+11, ly);
+    lx += 11 + ctx.measureText(label).width + 12;
+  });
+}
+
+/* ---------------- Init ---------------- */
+renderNameInputs();
+renderResume();
+renderHistory();
+show("scr-setup");
+
+})();
+</script>
+</body>
+</html>
