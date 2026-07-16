@@ -137,7 +137,21 @@
     width:48px;height:48px;padding:0;border-radius:0;box-shadow:none;
     background:transparent;color:var(--gold);font-size:26px;font-weight:700;
   }
-  .stepper .val{width:44px;text-align:center;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+  .stepper input.val{
+    width:56px;text-align:center;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;
+    background:transparent;border:none;border-radius:0;padding:0;color:var(--ink);font-family:inherit;
+  }
+  .first-badge{
+    display:inline-block;background:var(--gold);color:#1c1233;font-size:11px;font-weight:700;
+    border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:2px;
+  }
+  .game-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .game-item:last-child{border-bottom:none}
+  .game-item .gi-info{flex:1;min-width:0}
+  .game-item .gi-info b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .game-item .date{color:var(--muted);font-size:12px;margin-top:2px}
+  .game-item .gi-btns{display:flex;gap:8px}
+  .game-item .gi-btns button{width:auto;padding:10px 14px;font-size:14px}
   .sum-line{margin-top:12px;font-size:14px;text-align:center;color:var(--muted)}
   .sum-line.bad{color:var(--red);font-weight:700}
   .sum-line.good{color:var(--green)}
@@ -230,13 +244,9 @@
 
   <!-- ============ SETUP ============ -->
   <div id="scr-setup" class="screen">
-    <div id="resume-panel" class="panel" style="display:none">
-      <h2>Spiel fortsetzen?</h2>
-      <p class="hint" id="resume-info"></p>
-      <div class="row mt">
-        <button id="btn-resume">Weiterspielen</button>
-        <button class="ghost" id="btn-discard">Verwerfen</button>
-      </div>
+    <div id="games-panel" class="panel" style="display:none">
+      <h2>Laufende Spiele</h2>
+      <div id="games-list"></div>
     </div>
 
     <div class="panel">
@@ -285,7 +295,7 @@
       <div class="legend">Klein = Ansage / Ergebnis · Groß = Punktestand · Runde antippen zum Bearbeiten</div>
     </div>
 
-    <button class="danger mt" id="btn-abort">Spiel abbrechen</button>
+    <button class="ghost mt" id="btn-overview">Zur Spielübersicht (Spiel bleibt gespeichert)</button>
   </div>
 
   <!-- ============ FINAL ============ -->
@@ -336,8 +346,25 @@ var store = {
   set:function(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){ mem[k]=v; } },
   del:function(k){ try{ localStorage.removeItem(k); }catch(e){ delete mem[k]; } }
 };
-var KEY_GAME = "wizard_current_game";
+var KEY_GAMES = "wizard_games";
 var KEY_HIST = "wizard_history";
+
+/* Migration: altes Einzelspiel in die neue Liste übernehmen */
+(function(){
+  var old = store.get("wizard_current_game");
+  if(old && old.players){
+    old.id = old.id || String(old.startedAt || Date.now());
+    var list = store.get(KEY_GAMES) || [];
+    list.push(old);
+    store.set(KEY_GAMES, list);
+    store.del("wizard_current_game");
+  }
+})();
+
+function loadGames(){ return store.get(KEY_GAMES) || []; }
+function removeGame(id){
+  store.set(KEY_GAMES, loadGames().filter(function(g){ return g.id !== id; }));
+}
 
 /* ---------------- State ---------------- */
 var game = null;
@@ -430,6 +457,7 @@ $("btn-start").addEventListener("click", function(){
     names.push(inp.value.trim() || ("Spieler " + (i+1)));
   });
   game = {
+    id: String(Date.now()),
     players: names,
     totalRounds: roundsFor(names.length),
     rounds: [],
@@ -442,26 +470,35 @@ $("btn-start").addEventListener("click", function(){
   renderGame();
 });
 
-function renderResume(){
-  var g = store.get(KEY_GAME);
-  if(g && g.players){
-    game = g;
-    $("resume-panel").style.display = "block";
+function renderGamesList(){
+  var list = loadGames();
+  $("games-panel").style.display = list.length ? "block" : "none";
+  var box = $("games-list");
+  box.innerHTML = "";
+  list.slice().reverse().forEach(function(g){
     var played = g.rounds.filter(function(r){return r.tricks;}).length;
-    $("resume-info").textContent = g.players.join(", ") + " · Runde " + Math.min(played+1, g.totalRounds) + " von " + g.totalRounds;
-  } else {
-    $("resume-panel").style.display = "none";
-  }
+    var item = el("div","game-item",
+      '<div class="gi-info"><b>'+g.players.map(esc).join(", ")+'</b>'+
+      '<div class="date">'+g.players.length+' Spieler · Runde '+Math.min(played+1,g.totalRounds)+' von '+g.totalRounds+
+      ' · '+new Date(g.startedAt).toLocaleDateString("de-DE")+'</div></div>'+
+      '<div class="gi-btns"><button data-open="'+g.id+'">Weiter</button>'+
+      '<button class="danger" data-del="'+g.id+'">✕</button></div>');
+    box.appendChild(item);
+  });
 }
-$("btn-resume").addEventListener("click", function(){
-  show("scr-game");
-  renderGame();
-});
-$("btn-discard").addEventListener("click", function(){
-  if(!confirm("Angefangenes Spiel wirklich verwerfen?")) return;
-  game = null;
-  store.del(KEY_GAME);
-  renderResume();
+$("games-list").addEventListener("click", function(e){
+  var b = e.target.closest("button");
+  if(!b) return;
+  if(b.dataset.open){
+    game = loadGames().find(function(g){ return g.id === b.dataset.open; });
+    if(!game) return;
+    show("scr-game");
+    renderGame();
+  } else if(b.dataset.del){
+    if(!confirm("Dieses Spiel wirklich löschen?")) return;
+    removeGame(b.dataset.del);
+    renderGamesList();
+  }
 });
 
 /* ---------------- History ---------------- */
@@ -488,7 +525,14 @@ $("btn-clear-history").addEventListener("click", function(){
 });
 
 /* ---------------- Game rendering ---------------- */
-function saveGame(){ if(game) store.set(KEY_GAME, game); }
+function saveGame(){
+  if(!game) return;
+  var list = loadGames();
+  var idx = -1;
+  list.forEach(function(g,i){ if(g.id === game.id) idx = i; });
+  if(idx >= 0) list[idx] = game; else list.push(game);
+  store.set(KEY_GAMES, list);
+}
 
 function renderGame(){
   var r = currentRoundIndex();
@@ -518,11 +562,34 @@ function renderGame(){
   renderBlock($("block-table"), true);
 }
 
+function makeValInput(arr, i, maxVal, onChange){
+  var inp = document.createElement("input");
+  inp.type = "text";
+  inp.inputMode = "numeric";
+  inp.className = "val";
+  inp.value = arr[i];
+  inp.setAttribute("aria-label","Wert direkt eingeben");
+  inp.addEventListener("focus", function(){ inp.select(); });
+  inp.addEventListener("input", function(){
+    var v = parseInt(inp.value, 10);
+    if(isNaN(v)) v = 0;
+    v = Math.max(0, Math.min(maxVal, v));
+    arr[i] = v;
+    onChange();
+  });
+  inp.addEventListener("blur", function(){ inp.value = arr[i]; });
+  return inp;
+}
+
 function renderSteppers(container, values, maxVal, dealer, phase, onChange){
   container.innerHTML = "";
+  var first = (dealer + 1) % game.players.length;
   game.players.forEach(function(name, i){
     var row = el("div","stepper-row");
-    var label = el("div","pname", esc(name) + (i===dealer ? ' <span class="dealer-star">✦ Geber</span>' : ""));
+    var tags = "";
+    if(i === dealer) tags += ' <span class="dealer-star">✦ Geber</span>';
+    if(i === first) tags += ' <span class="first-badge">Starter</span>';
+    var label = el("div","pname", esc(name) + tags);
     row.appendChild(label);
     if(phase === "tricks"){
       var bidInfo = el("div","pbid","Ansage: " + game.rounds[game.rounds.length-1].bids[i]);
@@ -530,15 +597,15 @@ function renderSteppers(container, values, maxVal, dealer, phase, onChange){
     }
     var st = el("div","stepper");
     var minus = el("button",null,"−");
-    var val = el("div","val", values[i]);
+    var val = makeValInput(values, i, maxVal, onChange);
     var plus = el("button",null,"+");
     minus.setAttribute("aria-label","weniger");
     plus.setAttribute("aria-label","mehr");
     minus.addEventListener("click", function(){
-      if(values[i] > 0){ values[i]--; val.textContent = values[i]; onChange(); }
+      if(values[i] > 0){ values[i]--; val.value = values[i]; onChange(); }
     });
     plus.addEventListener("click", function(){
-      if(values[i] < maxVal){ values[i]++; val.textContent = values[i]; onChange(); }
+      if(values[i] < maxVal){ values[i]++; val.value = values[i]; onChange(); }
     });
     st.appendChild(minus); st.appendChild(val); st.appendChild(plus);
     row.appendChild(st);
@@ -574,11 +641,10 @@ $("btn-phase-next").addEventListener("click", function(){
   renderGame();
 });
 
-$("btn-abort").addEventListener("click", function(){
-  if(!confirm("Spiel wirklich abbrechen? Der Spielstand geht verloren.")) return;
+$("btn-overview").addEventListener("click", function(){
+  saveGame();
   game = null;
-  store.del(KEY_GAME);
-  renderResume();
+  renderGamesList();
   renderHistory();
   show("scr-setup");
 });
@@ -671,13 +737,13 @@ function makeMiniStepper(label, arr, i, maxVal){
   lab.style.cssText = "font-size:10px;color:var(--muted);margin-bottom:2px";
   var st = el("div","stepper");
   var minus = el("button",null,"−");
-  var val = el("div","val", arr[i]);
+  var val = makeValInput(arr, i, maxVal, updateModalSum);
   var plus = el("button",null,"+");
   minus.style.width = plus.style.width = "38px";
   minus.style.height = plus.style.height = "38px";
-  val.style.width = "34px"; val.style.fontSize = "17px";
-  minus.addEventListener("click", function(){ if(arr[i]>0){ arr[i]--; val.textContent=arr[i]; updateModalSum(); } });
-  plus.addEventListener("click", function(){ if(arr[i]<maxVal){ arr[i]++; val.textContent=arr[i]; updateModalSum(); } });
+  val.style.width = "42px"; val.style.fontSize = "17px";
+  minus.addEventListener("click", function(){ if(arr[i]>0){ arr[i]--; val.value=arr[i]; updateModalSum(); } });
+  plus.addEventListener("click", function(){ if(arr[i]<maxVal){ arr[i]++; val.value=arr[i]; updateModalSum(); } });
   st.appendChild(minus); st.appendChild(val); st.appendChild(plus);
   wrap.appendChild(lab); wrap.appendChild(st);
   return wrap;
@@ -738,7 +804,7 @@ function finishGame(){
   }
   if(hist.length > 30) hist = hist.slice(-30);
   store.set(KEY_HIST, hist);
-  store.del(KEY_GAME);
+  removeGame(game.id);
   show("scr-final");
 }
 function renderBlockFinal(){
@@ -769,7 +835,7 @@ $("final-block").addEventListener("click", function(e){
 });
 $("btn-new-after").addEventListener("click", function(){
   game = null;
-  renderResume();
+  renderGamesList();
   renderHistory();
   show("scr-setup");
 });
@@ -830,7 +896,7 @@ function drawChart(){
 
 /* ---------------- Init ---------------- */
 renderNameInputs();
-renderResume();
+renderGamesList();
 renderHistory();
 show("scr-setup");
 
